@@ -1,4 +1,3 @@
-
 class Item:
     '''defines the class item taking an Item ID item name description and a boolean if it can be picked up or not'''
     def __init__(self, iid:int, item_name:str, carry:bool, description:str):
@@ -40,6 +39,7 @@ class Room:
     def describe(self):
         '''function for describing the room a player is in'''
         print(f" You are currently in the {self.name}. {self.description}")
+        return f" You are currently in the {self.name}. {self.description}"
 
     def add_item(self, i: Item):
         '''function for adding an item to a room'''
@@ -60,6 +60,22 @@ class Player:
         self.current_room = start_room
         self.inventory.add(hand)
 
+    def get_current_room(self):
+        '''getter for current room'''
+        return self.current_room
+
+    def set_current_room(self,room:Room):
+        '''setter for current room'''
+        self.current_room = room
+
+    def get_inv(self):
+        '''getter for inventory'''
+        return self.inventory
+
+    def add_inv(self,i:Item):
+        '''dev function for adding an item to player inv mostly used in tests'''
+        self.inventory.add(i)
+
     def input_command(self):
         '''handles inputting command stripping player input and making it lowercase'''
         command = input(">").strip().lower()
@@ -68,7 +84,7 @@ class Player:
     def process_command(self, command):
         '''Processing for commands'''
         if command == "take":
-            item_name = input(f"Which item do you wish to take\n >")
+            item_name = input(f"Which item do you wish to take\n>")
             self.take_item(item_name)
 
         elif command == "check inventory":
@@ -79,7 +95,7 @@ class Player:
 
         elif command == "examine item":
             #calls examine_item function
-            examine_target = input(f"What would you like to examine\n >")
+            examine_target = input(f"What would you like to examine\n>")
             self.examine_item(examine_target)
 
         elif command == "examine room":
@@ -88,13 +104,13 @@ class Player:
 
         elif command == "use":
             #calls the use_item function taking player input for the key and lock targets
-            key_target = input("Which item would you like to use\n >")
-            lock_target = input("Which item would you like to use it on\n >")
+            key_target = input("Which item would you like to use\n>")
+            lock_target = input("Which item would you like to use it on\n>")
             self.use_item(key_target,lock_target)
 
         elif command == "go":
             #calls the go function taking user input as the go target
-            go_target = input("Where would you like to go? \n >")
+            go_target = input("Where would you like to go? \n>")
             self.travel_to(go_target)
 
         elif command == "exit":
@@ -115,9 +131,10 @@ class Player:
                   f" exit - exits the game")
 
     def take_item(self, item_name):
-        '''take item function takes input from player in '''
+        '''take item function takes input from player checks current room for item and adds it to the inventory set if the item is found in the room
+         if item is not in the room or item can not be picked up displays an error message '''
         i_found = False
-        #loops through items in current room searching for an item name that matches player com
+        #loops through items in current room searching for an item name that matches player input
         for item in self.current_room.room_items:
             if item.name == item_name and item.carry == True:
                 i_found = True
@@ -125,12 +142,17 @@ class Player:
                 self.current_room.room_items.remove(item)
             elif item.name == item_name and item.carry == False:
                 print(f"You can not pick up the {item_name}")
+                return f"You can not pick up the {item_name}"
         if i_found:
             print(f"You pick up the {item_name}")
+            return f"You pick up the {item_name}"
         if not i_found:
             print(f"{item_name} is not in the room")
+            return f"{item_name} is not in the room"
 
     def examine_item(self, examine_target):
+        '''examine item function takes input from the player in which item they want to examine iterates through the player inv and current room
+         if the item target is found prints the item description if the item target is not found displays an error message'''
         e_item = None
         for examined_item in self.current_room.room_items:
             if examined_item.name == examine_target:
@@ -140,22 +162,33 @@ class Player:
                 e_item = examined_item
         if e_item is not None:
             print(e_item.description)
+            return e_item.description
         else:
             print(f"{examine_target} is not in your inventory or the room")
+            return f"{examine_target} is not in your inventory or the room"
 
     def travel_to(self, go_target):
-        g_room = None
+        '''travel to takes input from the user and checks through the current room adjacent rooms
+        if the room is found sets the player current room to that room if not sends a error message'''
+        go_room = None
         for room in Room.get_adjacent_rooms(self.current_room):
             if room.name == go_target:
-                g_room = room
+                go_room = room
 
-        if g_room is not None:
-            Player().current_room = g_room
-            print(f"You walk to the {g_room.name}")
+        if go_room is not None:
+            get_game().get_player().current_room = go_room
+            print(f"You walk to {go_room.name}")
+            return f"You walk to {go_room.name}"
         else:
             print(f"{go_target} can not be traveled to")
+            return f"{go_target} can not be traveled to"
 
     def use_item(self, key_target, lock_target):
+        '''use item takes input from the player first as key target then as lock target first searching through player inv
+         to ensure key target exists within player inv then iterates through the room items and player inv to ensure there is a legal key target
+         it also checks if the key target is an instance of key and the lock target is an instance of lock if both are true it will check
+         if key value and lock value are the same if so the lock will become unlocked
+        '''
         key = None
         lock = None
         k_found = False
@@ -168,20 +201,30 @@ class Player:
             if l_item.name == lock_target:
                 lock = l_item
                 l_found = True
+        for l_item in self.inventory:
+            if l_item.name == lock_target:
+                lock = l_item
+                l_found = True
 
         if not k_found:
             print(f"{key_target} is not in your inventory")
+            return f"{key_target} is not in your inventory"
         elif not l_found:
             print(f"{lock_target} is not in the room")
+            return f"{lock_target} is not in the room"
         elif not isinstance(key,KeyItem):
             print(f"you don't see a way that {key_target} can be used")
+            return f"you don't see a way that {key_target} can be used"
         elif not isinstance(lock,LockItem):
             print(f"you don't see a way that {lock_target} can be used")
+            return f"you don't see a way that {lock_target} can be used"
         elif key.key != lock.lock:
             print(f"{key.name} can not be used like that")
+            return f"{key.name} can not be used like that"
         elif key.key == lock.lock:
             lock.locked = False
 
+        #lays out logic for if locks are unlocked note (there is probably a better way to do this, but it is a quirk of how the current code is written)
         if not lock1.locked:
             print(f"The lock falls off the door you should be able to open it now")
         if not lock1.locked and not door1.locked:
@@ -190,18 +233,26 @@ class Player:
 
 
 class Game:
+    '''defines the game class initializing an instance of player and sets the player current room to the game start room and sets playing to true'''
     def __init__(self):
         self.player = Player()
         self.current_room = start_room
         self.playing = True
 
+    def get_player(self):
+        '''geter for player'''
+        return self.player
+
     def get_gamestate(self):
+        '''getter for gamestate'''
         return self.playing
 
     def set_gamestate(self,x:bool):
+        '''setter for gamestate taking a boolean'''
         self.playing = x
 
     def start_game(self):
+        '''starts game begining the command input and processing loop when this loop is exited, exits the game'''
         print("you awake in a strange room you don't remember anything")
         while self.playing:
             self.player.input_command()
@@ -210,8 +261,7 @@ class Game:
                 print(f"Thank you for playing!")
                 break
 
-
-
+#initialization for global objects
 start_room = Room(1, "start room", "The room is very plain there is a door to the north with a lock on it."
                                            "Above the door there is a sign reading Test Chamber 1"
                                            " there is a pumpkin on the floor in the center of the room."
@@ -230,5 +280,8 @@ start_room.add_item(lock1)
 start_room.add_item(door1)
 
 game = Game()
-game.start_game()
+def get_game():
+    return game
 
+if __name__ == "__main__":
+    game.start_game()
